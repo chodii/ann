@@ -22,7 +22,7 @@ def get_data():
 #0-7 int, 8-17 double, 18int
 
 def main():
-    dim = (19,30,1)
+    dim = (19,19, 1)#, 19
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
@@ -91,7 +91,7 @@ def train(ann, dim, train_keys, validation_keys, input_data, output_data):
             targ_out, targ_inp = get_target(dim, output_data, input_data, k)
             out = feed_me(ann, targ_inp, dim)
             
-            ann = back_prop_2(ann, targ_out, targ_inp,dim)
+            ann = back_propagation(ann, targ_out, targ_inp)#,dim
         avg_acc = validation(ann, dim, validation_keys, input_data, output_data)
         avg_accuracies.append(avg_acc)
         #    return best_acc, accuracy_avg, i, avg_accuracies
@@ -210,7 +210,8 @@ def construct_neuron(prev_dim):
 
 #
 
-def back_prop_2(ann, target_output, target_input, dim):# len(dim) == len(ann)+1
+#back_prop_2
+def back_propagation(ann, target_output, target_input):#, dim len(dim) == len(ann)+1
     deltas_cpy = []
     for lay_ix in range(len(ann)-1, -1, -1):# start, stop, step
         layer = ann[lay_ix]
@@ -222,30 +223,33 @@ def back_prop_2(ann, target_output, target_input, dim):# len(dim) == len(ann)+1
         err_term = 0
         deltas = []
         # for each neuron in the layer
-        for n_ix in range(len(layer)):
-            if lay_ix == len(ann)-1:
+        if lay_ix == len(ann)-1:
+            for n_ix in range(len(layer)):
                 err_term = error_term_output(t = target_output[n_ix], o = layer[n_ix]["output"])
-                # print("delta::",err_term)
-            else:
+                deltas.append(err_term)
+                propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
+        else:
+            for n_ix in range(len(layer)):
                 weights_nxt = []# weights which goes from this neuron to ->next layer
                 for next_n in ann[lay_ix+1]:
                     weights_nxt.append(next_n["weight"][n_ix])
-                err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, weights_next=weights_nxt)
-            #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
-            deltas.append(err_term)
-            for prev_n_ix in range(len(prev_layer)):# previous layer <-|
-                if lay_ix >= 1:
-                    delt_w = delta_w(prev_layer[prev_n_ix]["output"], err_term)
-                else:
-                    delt_w = delta_w(prev_layer[prev_n_ix], err_term)
-                old_w = layer[n_ix]["weight"][prev_n_ix]
-                new_wn = new_w(old_w, delt_w)
-                ann[lay_ix][n_ix]["weight"][prev_n_ix] = new_wn
-                #print("\n",old_w, " / ", new_wn,"\t",delt_w,"\t",err_term,"\n")
-                #layer[n_ix]["weight"][prev_n_ix] = new_w(old_w, delt_w)
+                    err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, weights_next=weights_nxt)
+                    deltas.append(err_term)
+                    propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
+        #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
+        
         deltas_cpy = deltas
     return ann
 
+def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_ix):
+    for prev_n_ix in range(len(destination_layer)):# previous layer <-|
+        if lay_ix >= 1:
+            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term)
+        else:
+            delt_w = delta_w(destination_layer[prev_n_ix], err_term)
+        old_w = source_layer[n_ix]["weight"][prev_n_ix]
+        new_wn = new_w(old_w, delt_w)
+        ann[lay_ix][n_ix]["weight"][prev_n_ix] = new_wn
 
 def trans_next_layer(layer):
     next_layer = [[0.0] * len(layer)] * len(layer[0]["weight"])
