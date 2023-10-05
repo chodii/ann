@@ -2,7 +2,8 @@
 """
 Created on Wed Nov 16 15:28:09 2022
 
-@author: Jan Chodora, Martina Kůsová
+@author: Jan Chodora
+@thanks: Martina Kůsová
 """
 import random
 
@@ -16,7 +17,7 @@ import numpy as np
 import statistics
 
 def get_data():
-    data = arff.loadarff("Diabetic.txt")
+    data = arff.loadarff("../data/Diabetic.txt")
     df = pd.DataFrame(data[0])
     return (df["0"],df["1"],df["2"],df["3"],df["4"],df["5"],df["6"], df["7"],df["8"],df["9"],df["10"],df["11"],df["12"],df["13"],df["14"],df["15"],df["16"],df["17"],df["18"]), df["Class"]
 #0-7 int, 8-17 double, 18int
@@ -162,7 +163,7 @@ def construct_ann(dimensions):
     @param dimensions:      array of values, one for each layer to be created; 
             first for an input "layer" - will not be created because it does not really exists in our implementation
     """
-    ann = []
+    ann = [construct_layer(prev_dim=1, actual_dim=dimensions[0])]
     for i in range(1,len(dimensions)):# i as an element of an array
         layer = construct_layer(prev_dim=dimensions[i-1], actual_dim=dimensions[i])
         ann.append(layer)
