@@ -3,7 +3,6 @@
 Created on Wed Nov 16 15:28:09 2022
 
 @author: Jan Chodora
-@thanks: Martina Kůsová
 """
 import random
 
@@ -23,7 +22,7 @@ def get_data():
 #0-7 int, 8-17 double, 18int
 
 def main():
-    dim = (19,19, 1)#, 19
+    dim = (19, 40, 1)#, 19
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
@@ -92,7 +91,7 @@ def train(ann, dim, train_keys, validation_keys, input_data, output_data):
             targ_out, targ_inp = get_target(dim, output_data, input_data, k)
             out = feed_me(ann, targ_inp, dim)
             
-            ann = back_propagation(ann, targ_out, targ_inp)#,dim
+            ann = back_propagation(ann, targ_out)#,dim
         avg_acc = validation(ann, dim, validation_keys, input_data, output_data)
         avg_accuracies.append(avg_acc)
         #    return best_acc, accuracy_avg, i, avg_accuracies
@@ -114,7 +113,7 @@ def validation_accuracy(out, targ_out):
     ERR = 0.48
     correct = 0
     for i in range(len(out)):
-        if abs(out[i] - targ_out[i]) < ERR:
+        if abs(out[i]["output"] - targ_out[i]) < ERR:
             correct += 1.0
     return correct/len(out)
 
@@ -123,19 +122,14 @@ def validation_accuracy(out, targ_out):
 # ----------------------------------------------------------------
 
 def feed_me(ann, targ_inp, dim):
-    layer = targ_inp
-    for l in range(len(ann)):
-        layer_next = []
+    for i in range(len(targ_inp)):
+        ann[0][i]["output"] = targ_inp[i]
+    
+    for l in range(1, len(ann), 1):
         for neuron in ann[l]:
-            net = sum_inputs(neuron["weight"], layer)
-            output = sigma(net)
-            neuron["output"] = output
-            #print('\n output:', output)
-            
-            layer_next.append(neuron["output"])
-            
-        layer = layer_next
-    return layer
+            net = sum_inputs(neuron["weight"], ann[l-1])
+            neuron["output"] = sigma(net)
+    return ann[len(ann)-1]
     
         
 def print_ann(ann):
@@ -147,7 +141,7 @@ def print_ann(ann):
 def sum_inputs(weights, inputs):
     x = 0
     for i in range(len(inputs)):
-        x += weights[i] * inputs[i]
+        x += weights[i] * inputs[i]["output"]
     return x
 
 def sigma(x):
@@ -212,14 +206,11 @@ def construct_neuron(prev_dim):
 #
 
 #back_prop_2
-def back_propagation(ann, target_output, target_input):#, dim len(dim) == len(ann)+1
+def back_propagation(ann, target_output):#, dim len(dim) == len(ann)+1
     deltas_cpy = []
     for lay_ix in range(len(ann)-1, -1, -1):# start, stop, step
         layer = ann[lay_ix]
-        if lay_ix >= 1:
-            prev_layer = ann[lay_ix-1]
-        else:
-            prev_layer = target_input
+        prev_layer = ann[lay_ix-1]
         # for each layer and layer before it
         err_term = 0
         deltas = []
@@ -231,10 +222,10 @@ def back_propagation(ann, target_output, target_input):#, dim len(dim) == len(an
                 propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
         else:
             for n_ix in range(len(layer)):
-                weights_nxt = []# weights which goes from this neuron to ->next layer
+                #weights_nxt = []# weights which goes from this neuron to ->next layer
                 for next_n in ann[lay_ix+1]:
-                    weights_nxt.append(next_n["weight"][n_ix])
-                    err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, weights_next=weights_nxt)
+                    #weights_nxt.append(next_n["weight"][n_ix])
+                    err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
                     deltas.append(err_term)
                     propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
         #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
@@ -247,7 +238,7 @@ def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_
         if lay_ix >= 1:
             delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term)
         else:
-            delt_w = delta_w(destination_layer[prev_n_ix], err_term)
+            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term)
         old_w = source_layer[n_ix]["weight"][prev_n_ix]
         new_wn = new_w(old_w, delt_w)
         ann[lay_ix][n_ix]["weight"][prev_n_ix] = new_wn
@@ -282,7 +273,7 @@ def delta_w(o_j, delta_next, learning_rate = 0.1):
     return o_j * delta_next * learning_rate
 
 
-def error_term_hidden(o_j, deltas_next, weights_next):
+def error_term_hidden(o_j, deltas_next, layer_next, neuron_ix):
     """
     delta hidden
     @param o_j:             output of this neuron
@@ -293,7 +284,7 @@ def error_term_hidden(o_j, deltas_next, weights_next):
     dot_product=0
     for i in range(len(deltas_next)):
         d = deltas_next[i]
-        w = weights_next[i]
+        w = layer_next[i]["weight"][neuron_ix]
         dot_product += d * w
     delta = (1 - o_j) * o_j * dot_product
     return delta
