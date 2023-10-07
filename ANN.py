@@ -22,7 +22,7 @@ def get_data():
 #0-7 int, 8-17 double, 18int
 
 def main():
-    dim = (19, 40, 1)#, 19
+    dim = (19, 40, 10, 1)#, 19
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
@@ -86,7 +86,6 @@ def train(ann, dim, train_keys, validation_keys, input_data, output_data):
     avg_accuracies=[]
     best_acc = None
     for i in range(EPOCHS):
-        #print("\nANN:\n",ann,"\n.\n")
         for k in train_keys:
             targ_out, targ_inp = get_target(dim, output_data, input_data, k)
             out = feed_me(ann, targ_inp, dim)
@@ -208,7 +207,7 @@ def construct_neuron(prev_dim):
 #back_prop_2
 def back_propagation(ann, target_output):#, dim len(dim) == len(ann)+1
     deltas_cpy = []
-    for lay_ix in range(len(ann)-1, -1, -1):# start, stop, step
+    for lay_ix in range(len(ann)-1, 1, -1):# start, stop, step
         layer = ann[lay_ix]
         prev_layer = ann[lay_ix-1]
         # for each layer and layer before it
@@ -245,7 +244,6 @@ def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_
 
 def trans_next_layer(layer):
     next_layer = [[0.0] * len(layer)] * len(layer[0]["weight"])
-    #print(next_layer)
     for i in range(len(layer)):
         for j in range(len(layer[i]["weight"])):
             next_layer[j][i] = layer[i]["weight"][j]
