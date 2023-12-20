@@ -22,16 +22,18 @@ def get_data():
 #0-7 int, 8-17 double, 18int
 
 def main():
-    dim = (19, 40, 10, 1)#, 19
+    dim = (19, 19, 1)#, 19
+    EPOCHS = 200
+    learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
     input_data, output_data = get_data()
     for inp in input_data:
-        mean = statistics.mean(inp)
-        std = statistics.stdev(inp)
+        mean = statistics.mean(inp)# EX
+        std = statistics.stdev(inp)# varX
         for k in inp.keys():
-            inp[k] = ((inp[k] - mean)/std)
+            inp[k] = ((inp[k] - mean)/std)# norm
     
     
     keys = output_data.keys()
@@ -49,12 +51,13 @@ def main():
                 validation_keys.append(k)
             else:
                 test_keys.append(k)
-    best_acc, avg_acc, epoch_i, acc = train(ann, dim, train_keys, validation_keys, input_data, output_data)
+    best_acc, avg_acc, acc = train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS=EPOCHS, learning_rate=learning_rate)
     plt.plot(acc)
     plt.show()
-    print("Training done, ", best_acc, ", avg: ", avg_acc, "epochs: ",epoch_i,", acc", acc)
+    print("Training done, ", best_acc, ", avg: ", avg_acc, ", acc", np.mean(acc), max(acc))
     #
     test(ann, dim, test_keys, input_data, output_data)
+    print("ANN dimension:", dim)
     
 def test(ann, dim, test_keys, input_data, output_data):
     accuracies = []
@@ -81,21 +84,32 @@ def get_target(dim, output_data, input_data, k):
         targ_inp[inp_ix] = float(input_data[inp_ix][k])
     return targ_out, targ_inp
 
-def train(ann, dim, train_keys, validation_keys, input_data, output_data):
-    EPOCHS = 200
+def train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS = 100, learning_rate=0.3, batch_size = 10):
+    
     avg_accuracies=[]
     best_acc = None
+    b = 0
+    target_outputs = []
     for i in range(EPOCHS):
+        print(".", end="")
+        #outpus = []
         for k in train_keys:
             targ_out, targ_inp = get_target(dim, output_data, input_data, k)
             out = feed_me(ann, targ_inp, dim)
+            #outpus.append(out)
+            target_outputs.append(targ_out)
             
-            ann = back_propagation(ann, targ_out)#,dim
+            b += 1
+            if b%batch_size == 0:
+                #ann = propagation(ann, target_outputs, learning_rate)
+                target_outputs = []
+                
+            ann = back_propagation(ann, targ_out, learning_rate)#,dim
         avg_acc = validation(ann, dim, validation_keys, input_data, output_data)
         avg_accuracies.append(avg_acc)
         #    return best_acc, accuracy_avg, i, avg_accuracies
-    print("AVG:",avg_accuracies)
-    return best_acc,avg_acc,None,avg_accuracies
+    print("AVG:",np.mean(avg_accuracies), max(avg_accuracies))
+    return best_acc,avg_acc,avg_accuracies
 
 
 def validation(ann, dim, validation_keys, input_data, output_data):
@@ -202,10 +216,8 @@ def construct_neuron(prev_dim):
 #   Backpropagation:
 # ----------------------------------------------------------------
 
-#
-
 #back_prop_2
-def back_propagation(ann, target_output):#, dim len(dim) == len(ann)+1
+def back_propagation(ann, target_output, learning_rate):#, dim len(dim) == len(ann)+1
     deltas_cpy = []
     for lay_ix in range(len(ann)-1, 1, -1):# start, stop, step
         layer = ann[lay_ix]
@@ -218,7 +230,7 @@ def back_propagation(ann, target_output):#, dim len(dim) == len(ann)+1
             for n_ix in range(len(layer)):
                 err_term = error_term_output(t = target_output[n_ix], o = layer[n_ix]["output"])
                 deltas.append(err_term)
-                propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
+                propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
         else:
             for n_ix in range(len(layer)):
                 #weights_nxt = []# weights which goes from this neuron to ->next layer
@@ -226,18 +238,18 @@ def back_propagation(ann, target_output):#, dim len(dim) == len(ann)+1
                     #weights_nxt.append(next_n["weight"][n_ix])
                     err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
                     deltas.append(err_term)
-                    propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix)
+                    propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
         #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
-        
+        #print(deltas)
         deltas_cpy = deltas
     return ann
 
-def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_ix):
+def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_ix, learning_rate):
     for prev_n_ix in range(len(destination_layer)):# previous layer <-|
         if lay_ix >= 1:
-            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term)
+            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term, learning_rate)
         else:
-            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term)
+            delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term, learning_rate)
         old_w = source_layer[n_ix]["weight"][prev_n_ix]
         new_wn = new_w(old_w, delt_w)
         ann[lay_ix][n_ix]["weight"][prev_n_ix] = new_wn
@@ -260,7 +272,7 @@ def new_w(old_w, delta_w):
     return old_w + delta_w
 
 
-def delta_w(o_j, delta_next, learning_rate = 0.1):
+def delta_w(o_j, delta_next, learning_rate = 0.5):
     """
     Calculates 
     @param o_j:             output of this neuron
