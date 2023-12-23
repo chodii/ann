@@ -21,9 +21,13 @@ def get_data():
     return (df["0"],df["1"],df["2"],df["3"],df["4"],df["5"],df["6"], df["7"],df["8"],df["9"],df["10"],df["11"],df["12"],df["13"],df["14"],df["15"],df["16"],df["17"],df["18"]), df["Class"]
 #0-7 int, 8-17 double, 18int
 
+def get_alter_data():
+    return None
+
+
 def main():
     dim = (19, 19, 1)#, 19
-    EPOCHS = 200
+    EPOCHS = 500
     learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
@@ -155,6 +159,7 @@ def sum_inputs(weights, inputs):
     x = 0
     for i in range(len(inputs)):
         x += weights[i] * inputs[i]["output"]
+    x += weights[-1]# +bias
     return x
 
 def sigma(x):
@@ -196,7 +201,7 @@ def construct_neuron(prev_dim):
     -------
     @returns:               layer of neurons
     """
-    neuron_weights = [0.0]*prev_dim
+    neuron_weights = [0.0]* (prev_dim +1)# +1 for bias
     for i in range(prev_dim):
         neuron_weights[i] = random.uniform(0, 1)
     neuron_output = 0
@@ -218,6 +223,9 @@ def construct_neuron(prev_dim):
 
 #back_prop_2
 def back_propagation(ann, target_output, learning_rate):#, dim len(dim) == len(ann)+1
+    """
+        network propagation
+    """
     deltas_cpy = []
     for lay_ix in range(len(ann)-1, 1, -1):# start, stop, step
         layer = ann[lay_ix]
@@ -245,32 +253,21 @@ def back_propagation(ann, target_output, learning_rate):#, dim len(dim) == len(a
     return ann
 
 def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_ix, learning_rate):
+    """
+        neuron's weights propagation
+    """
     for prev_n_ix in range(len(destination_layer)):# previous layer <-|
         if lay_ix >= 1:
             delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term, learning_rate)
         else:
             delt_w = delta_w(destination_layer[prev_n_ix]["output"], err_term, learning_rate)
         old_w = source_layer[n_ix]["weight"][prev_n_ix]
-        new_wn = new_w(old_w, delt_w)
-        ann[lay_ix][n_ix]["weight"][prev_n_ix] = new_wn
-
-def trans_next_layer(layer):
-    next_layer = [[0.0] * len(layer)] * len(layer[0]["weight"])
-    for i in range(len(layer)):
-        for j in range(len(layer[i]["weight"])):
-            next_layer[j][i] = layer[i]["weight"][j]
-    return next_layer
+        ann[lay_ix][n_ix]["weight"][prev_n_ix] = old_w + delt_w
     
-
-def new_w(old_w, delta_w):
-    """
-    Calculates value of new weight.
-    @param old_w:           old weight for this connction to(?) this neuron
-    @param delta_w:         change in the weight
-    @return: new weight
-    """
-    return old_w + delta_w
-
+    delt_wb = delta_w(1, err_term, learning_rate)
+    old_wb = source_layer[n_ix]["weight"][-1]
+    ann[lay_ix][n_ix]["weight"][-1] = old_wb + delt_wb
+    
 
 def delta_w(o_j, delta_next, learning_rate = 0.5):
     """
@@ -312,7 +309,7 @@ def error_term_output(t, o):
 
 
 # ----------------------------------------------------------------
-#   Executability:
+#   Execute:
 # ----------------------------------------------------------------
 
 if __name__ == "__main__":
