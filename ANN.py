@@ -20,9 +20,9 @@ import io
 def get_alter_data():
     raw_data = arff.loadarff("../data/Diabetic.txt")
     df = pd.DataFrame(raw_data[0])
+    #0-7 int, 8-17 double, 18int
     data = (df["0"],df["1"],df["2"],df["3"],df["4"],df["5"],df["6"], df["7"],df["8"],df["9"],df["10"],df["11"],df["12"],df["13"],df["14"],df["15"],df["16"],df["17"],df["18"]), df["Class"]
     return data
-#0-7 int, 8-17 double, 18int
 
 def get_data(filepath="../data/tren_data1___08.txt", columns=3):
     lines = None
@@ -30,7 +30,6 @@ def get_data(filepath="../data/tren_data1___08.txt", columns=3):
         lines = f.readlines()
     data = [[] for _ in range(columns)]
     for line in lines:
-        line = lines[0]
         line_postex = np.loadtxt(io.StringIO(line))
         for i in range(len(data)):
             data[i].append(line_postex[i])
@@ -38,7 +37,7 @@ def get_data(filepath="../data/tren_data1___08.txt", columns=3):
 
 
 def main():
-    dim = (2, 5, 1)#, 19
+    dim = (2, 5, 5)#, 19
     EPOCHS = 500
     learning_rate = 0.8
     ann = construct_ann(dim)
@@ -49,9 +48,12 @@ def main():
         mean = statistics.mean(inp)# EX
         std = statistics.stdev(inp)# varX
         #for k in inp.keys():
+        minp = min(inp)
+        manp = max(inp)
         for k in range(len(inp)):
             inp[k] = ((inp[k] - mean)/std)# norm
-    
+            #inp[k] = (inp[k] - minp)/(-minp + manp)
+    print(input_data)
     
     keys = np.arange(len(output_data)).tolist()#output_data.keys()
     split_rate_train = 0.75
