@@ -56,6 +56,17 @@ def main():
     print(input_data)
     
     keys = np.arange(len(output_data)).tolist()#output_data.keys()
+    train_keys, validation_keys, test_keys = split_train_val_test(keys)
+    
+    best_acc, avg_acc, acc = train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS=EPOCHS, learning_rate=learning_rate)
+    plt.plot(acc)
+    plt.show()
+    print("Training done, ", best_acc, ", avg: ", avg_acc, ", acc", np.mean(acc), max(acc))
+    #
+    test(ann, dim, test_keys, input_data, output_data)
+    print("ANN dimension:", dim)
+
+def split_train_val_test(keys):
     split_rate_train = 0.75
     split_rate_val = 0.1
     train_keys = []
@@ -70,14 +81,8 @@ def main():
                 validation_keys.append(k)
             else:
                 test_keys.append(k)
-    best_acc, avg_acc, acc = train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS=EPOCHS, learning_rate=learning_rate)
-    plt.plot(acc)
-    plt.show()
-    print("Training done, ", best_acc, ", avg: ", avg_acc, ", acc", np.mean(acc), max(acc))
-    #
-    test(ann, dim, test_keys, input_data, output_data)
-    print("ANN dimension:", dim)
-    
+    return train_keys, validation_keys, test_keys
+
 def test(ann, dim, test_keys, input_data, output_data):
     accuracies = []
     for k in test_keys:
@@ -92,8 +97,9 @@ def test(ann, dim, test_keys, input_data, output_data):
 
 #Marta upravila ukonceni a zaokrouhlouvani
 def get_target(dim, output_data, input_data, k):
-    targ_out = [0]*dim[len(dim)-1]      # expected output
-    targ_out[0] = float(output_data[k])
+    #targ_out = [0]*dim[len(dim)-1]      # expected output
+    #targ_out[0] = float(output_data[k])
+    targ_out = one_hot_encoding(output_data[k], dim[-1])
     
     targ_inp = [0] * dim[0]             # input
     for inp_ix in range(dim[0]):
@@ -183,6 +189,13 @@ def sigma(x):
 # ----------------------------------------------------------------
 #   Structure:
 # ----------------------------------------------------------------
+
+def one_hot_encoding(num, vect_len):
+    ix = int(num) - 1
+    v = [0] * vect_len
+    v[ix] = 1
+    return v
+
 def construct_ann(dimensions):
     """
     Creates ANN.
