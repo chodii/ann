@@ -148,12 +148,13 @@ def validation(ann, dim, validation_keys, input_data, output_data):
     return avg_acc
 
 def validation_accuracy(out, targ_out):
-    ERR = 0.48
-    correct = 0
-    for i in range(len(out)):
-        if abs(out[i]["output"] - targ_out[i]) < ERR:
-            correct += 1.0
-    return correct/len(out)
+    outvect = [0] * len(targ_out)
+    err_vect = [0] * len(targ_out)
+    for i in range(len(targ_out)):
+        outvect[i] = out[i]["output"]
+        err_vect[i] = abs(outvect[i] - targ_out[i])
+    accuracy = 1 - sum(err_vect)
+    return accuracy
 
 # ----------------------------------------------------------------
 #   Functionality:
