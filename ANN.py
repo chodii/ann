@@ -24,7 +24,7 @@ def get_alter_data():
     data = (df["0"],df["1"],df["2"],df["3"],df["4"],df["5"],df["6"], df["7"],df["8"],df["9"],df["10"],df["11"],df["12"],df["13"],df["14"],df["15"],df["16"],df["17"],df["18"]), df["Class"]
     return data
 
-def get_data(filepath="../data/tren_data1___08.txt", columns=3):
+def get_data(filepath="../data/tren_data2___08.txt", columns=3):
     lines = None
     with open(filepath) as f:
         lines = f.readlines()
@@ -37,7 +37,7 @@ def get_data(filepath="../data/tren_data1___08.txt", columns=3):
 
 
 def main():
-    dim = (2, 5, 5)#, 19
+    dim = (2,5,10, 5)#, 19
     EPOCHS = 500
     learning_rate = 0.8
     ann = construct_ann(dim)
@@ -88,24 +88,22 @@ def test(ann, dim, test_keys, input_data, output_data):
     for k in test_keys:
         targ_out, targ_inp = get_target(dim, output_data, input_data, k)
         out = feed_me(ann, targ_inp, dim)
-        accuracy = validation_accuracy(out, targ_out)
+        accuracy = prediction_accuracy(out, targ_out)
         accuracies.append(accuracy)
     avg_acc = float(sum(accuracies))/len(accuracies)
     print("\nTesting done, average accuracy: ",avg_acc)
     return avg_acc
 
 
-#Marta upravila ukonceni a zaokrouhlouvani
 def get_target(dim, output_data, input_data, k):
-    #targ_out = [0]*dim[len(dim)-1]      # expected output
-    #targ_out[0] = float(output_data[k])
+    """ 
+    Vectorization of input/output
+    --------
+    @return: vector, vector
+    """
     targ_out = one_hot_encoding(output_data[k], dim[-1])
-    
-    targ_inp = [0] * dim[0]             # input
+    targ_inp = [0] * dim[0]
     for inp_ix in range(dim[0]):
-        #if inp_ix<8 or inp_ix==18:
-        #    targ_inp[inp_ix] = int(input_data[inp_ix][k]))
-        #else:
         targ_inp[inp_ix] = float(input_data[inp_ix][k])
     return targ_out, targ_inp
 
@@ -142,18 +140,30 @@ def validation(ann, dim, validation_keys, input_data, output_data):
     for k in validation_keys:
         targ_out, targ_inp = get_target(dim, output_data, input_data, k)
         out = feed_me(ann, targ_inp, dim)
-        accuracy = validation_accuracy(out, targ_out)
+        accuracy = prediction_accuracy(out, targ_out)
         accuracies.append(accuracy)
     avg_acc = float(sum(accuracies))/len(accuracies)
     return avg_acc
 
-def validation_accuracy(out, targ_out):
+def prediction_accuracy(out, targ_out):
+    """
+    Accuracy of a single prediction made.
+    --------
+    @param out: output layer
+    @param targ_out: vector
+    --------
+    returns: scalar
+    """
     outvect = [0] * len(targ_out)
-    err_vect = [0] * len(targ_out)
     for i in range(len(targ_out)):
         outvect[i] = out[i]["output"]
-        err_vect[i] = abs(outvect[i] - targ_out[i])
-    accuracy = 1 - sum(err_vect)
+    outnorm = 1/sum(outvect)
+    
+    err_vect = [0] * len(targ_out)
+    for i in range(len(targ_out)):
+        err_vect[i] = abs(outvect[i]*outnorm - targ_out[i])
+    accuracy = (2 - sum(err_vect))/2
+    #print(accuracy, outvect, targ_out)
     return accuracy
 
 # ----------------------------------------------------------------
@@ -263,19 +273,13 @@ def back_propagation(ann, target_output, learning_rate):#, dim len(dim) == len(a
         err_term = 0
         deltas = []
         # for each neuron in the layer
-        if lay_ix == len(ann)-1:
-            for n_ix in range(len(layer)):
+        for n_ix in range(len(layer)):
+            if lay_ix == len(ann)-1:
                 err_term = error_term_output(t = target_output[n_ix], o = layer[n_ix]["output"])
-                deltas.append(err_term)
-                propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
-        else:
-            for n_ix in range(len(layer)):
-                #weights_nxt = []# weights which goes from this neuron to ->next layer
-                for next_n in ann[lay_ix+1]:
-                    #weights_nxt.append(next_n["weight"][n_ix])
-                    err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
-                    deltas.append(err_term)
-                    propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
+            else:
+                err_term = error_term_hidden(o_j = layer[n_ix]["output"], deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
+            deltas.append(err_term)
+            propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
         #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
         #print(deltas)
         deltas_cpy = deltas
@@ -317,6 +321,8 @@ def error_term_hidden(o_j, deltas_next, layer_next, neuron_ix):
     @param weights_next:    vector; weight is weight of connection between this neuron and neurons from following layer
     @return: error
     """
+    if len(deltas_next) != len(layer_next):
+        print(deltas_next, neuron_ix, len(layer_next))
     dot_product=0
     for i in range(len(deltas_next)):
         d = deltas_next[i]
