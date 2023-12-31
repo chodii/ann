@@ -17,6 +17,21 @@ import statistics
 
 import io
 
+def dictionarize_X_y(X, y, y_range = range(1,6,1)):
+    len_X = len(X)# since array should be fixed, O(1); just felt wrong not to save
+    Xy = {yi:[[] for _ in range(len_X)] for yi in y_range}# prepare dictionary
+    for i in range(len(y)):# fill dictionary
+        yi = int(y[i])
+        for j in range(len_X):
+            Xy[yi][j].append(X[j][i])
+    return Xy
+    
+def draw_data(Xy, colours=None):
+    for yi in Xy.keys():# draw each class separately
+        plt.scatter(Xy[yi][0], Xy[yi][1], label=str(yi), color=colours[yi] if colours is not None else colours)
+    plt.legend(loc="upper left")
+    plt.show()
+
 def get_alter_data():
     raw_data = arff.loadarff("../data/Diabetic.txt")
     df = pd.DataFrame(raw_data[0])
@@ -37,19 +52,22 @@ def get_data(filepath="../data/tren_data2___08.txt", columns=3):
 
 
 def main():
+    
+    
     dim = (2,5,10, 5)#, 19
-    EPOCHS = 500
+    EPOCHS = 300
     learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
     input_data, output_data = get_data()
+    draw_data(dictionarize_X_y(input_data, output_data))
     for inp in input_data:
         mean = statistics.mean(inp)# EX
         std = statistics.stdev(inp)# varX
         #for k in inp.keys():
-        minp = min(inp)
-        manp = max(inp)
+        #minp = min(inp)
+        #manp = max(inp)
         for k in range(len(inp)):
             inp[k] = ((inp[k] - mean)/std)# norm
             #inp[k] = (inp[k] - minp)/(-minp + manp)
@@ -63,8 +81,30 @@ def main():
     plt.show()
     print("Training done, ", best_acc, ", avg: ", avg_acc, ", acc", np.mean(acc), max(acc))
     #
-    test(ann, dim, test_keys, input_data, output_data)
+    test_subjects = test(ann, dim, test_keys, input_data, output_data)
     print("ANN dimension:", dim)
+    
+    correct_predictions = [[] for _ in range(dim[0])]
+    correct_pred_keys = []
+    incorrect_predictions = [[] for _ in range(dim[0])]
+    incorrect_pred_keys = []
+    for k, prediction, target in test_subjects:
+        if prediction == target:
+            correct_pred_keys.append(k)
+            for i in range(dim[0]):
+                correct_predictions[i].append(input_data[i][k])
+        else:
+            incorrect_pred_keys.append([k, prediction, target])
+            for i in range(dim[0]):
+                incorrect_predictions[i].append(input_data[i][k])
+    draw_data({"correct":correct_predictions,
+               "wrong":incorrect_predictions}, colours={"correct":"green", "wrong":"red"})
+    
+    print(len(incorrect_pred_keys), len(incorrect_predictions[:][0]))
+    print(incorrect_pred_keys, incorrect_predictions)
+    # /!\  /!\  /!\ Strange behaviour detected /!\  /!\  /!\, inspect:
+    # print("incorrect predictions:\n".join(str(incorrect_pred_keys[i][1])+" != "+str(incorrect_pred_keys[i][2]) + " on [".join(str(incorrect_predictions[d][i]) for d in range(dim[0]))+"], \n" for i in range(len(incorrect_pred_keys))))
+    
 
 def split_train_val_test(keys):
     split_rate_train = 0.75
@@ -85,15 +125,34 @@ def split_train_val_test(keys):
 
 def test(ann, dim, test_keys, input_data, output_data):
     accuracies = []
+    results = []
     for k in test_keys:
         targ_out, targ_inp = get_target(dim, output_data, input_data, k)
         out = feed_me(ann, targ_inp, dim)
-        accuracy = prediction_accuracy(out, targ_out)
+        
+        vectout = vectorize_neuron(out)
+        accuracy = prediction_accuracy(vectout, targ_out)
         accuracies.append(accuracy)
+        
+        results.append((k, scalaratize_output(vectout), scalaratize_output(targ_out)))
     avg_acc = float(sum(accuracies))/len(accuracies)
     print("\nTesting done, average accuracy: ",avg_acc)
-    return avg_acc
+    print(results)
+    return results
 
+def scalaratize_output(out):
+    epsilon = sum(out)/2
+    for i in range(len(out)):
+        if out[i] > epsilon:
+            return i
+
+def discretize_output(out):
+    epsilon = sum(out)/2
+    output = [[0] * 5]
+    for i in range(len(out)):
+        if out[i] > epsilon:
+            output[i] = 1
+            return output
 
 def get_target(dim, output_data, input_data, k):
     """ 
@@ -140,12 +199,14 @@ def validation(ann, dim, validation_keys, input_data, output_data):
     for k in validation_keys:
         targ_out, targ_inp = get_target(dim, output_data, input_data, k)
         out = feed_me(ann, targ_inp, dim)
-        accuracy = prediction_accuracy(out, targ_out)
+        
+        vectout = vectorize_neuron(out)
+        accuracy = prediction_accuracy(vectout, targ_out)
         accuracies.append(accuracy)
     avg_acc = float(sum(accuracies))/len(accuracies)
     return avg_acc
 
-def prediction_accuracy(out, targ_out):
+def prediction_accuracy(outvect, targ_out):
     """
     Accuracy of a single prediction made.
     --------
@@ -154,17 +215,19 @@ def prediction_accuracy(out, targ_out):
     --------
     returns: scalar
     """
-    outvect = [0] * len(targ_out)
-    for i in range(len(targ_out)):
-        outvect[i] = out[i]["output"]
     outnorm = 1/sum(outvect)
     
     err_vect = [0] * len(targ_out)
     for i in range(len(targ_out)):
         err_vect[i] = abs(outvect[i]*outnorm - targ_out[i])
     accuracy = (2 - sum(err_vect))/2
-    #print(accuracy, outvect, targ_out)
     return accuracy
+
+def vectorize_neuron(out):
+    outvect = [0] * len(out)
+    for i in range(len(out)):
+        outvect[i] = out[i]["output"]
+    return outvect
 
 # ----------------------------------------------------------------
 #   Functionality:
@@ -281,7 +344,6 @@ def back_propagation(ann, target_output, learning_rate):#, dim len(dim) == len(a
             deltas.append(err_term)
             propagate_weights(ann, layer, prev_layer, err_term, n_ix, lay_ix, learning_rate)
         #delta = delta_w(o_j = layer[n_ix]["output"], delta_next = err_term)
-        #print(deltas)
         deltas_cpy = deltas
     return ann
 
@@ -322,7 +384,7 @@ def error_term_hidden(o_j, deltas_next, layer_next, neuron_ix):
     @return: error
     """
     if len(deltas_next) != len(layer_next):
-        print(deltas_next, neuron_ix, len(layer_next))
+        print("Error: ", deltas_next, neuron_ix, len(layer_next))
     dot_product=0
     for i in range(len(deltas_next)):
         d = deltas_next[i]
