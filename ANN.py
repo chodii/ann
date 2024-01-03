@@ -31,7 +31,15 @@ def draw_data(Xy, colours=None):
         plt.scatter(Xy[yi][0], Xy[yi][1], label=str(yi), color=colours[yi] if colours is not None else colours)
     plt.legend(loc="upper left")
     plt.show()
-
+    
+def draw_out_data(results, colours, plt3d=None):
+    if plt3d is not None:
+        for result in results:# draw each class separately
+            plt3d.scatter(result[0][0], result[0][1], result[0][2], color=colours[result[2]], edgecolors=colours[result[1]])
+        #return
+    for result in results:# draw each class separately
+        plt.scatter(result[0][0], result[0][1], color=colours[result[2]], edgecolors=colours[result[1]])
+    
 def get_alter_data():
     raw_data = arff.loadarff("../data/Diabetic.txt")
     df = pd.DataFrame(raw_data[0])
@@ -84,24 +92,39 @@ def main():
     test_subjects = test(ann, dim, test_keys, input_data, output_data)
     print("ANN dimension:", dim)
     
-    correct_predictions = [[] for _ in range(dim[0])]
-    correct_pred_keys = []
-    incorrect_predictions = [[] for _ in range(dim[0])]
-    incorrect_pred_keys = []
-    for k, prediction, target in test_subjects:
-        if prediction == target:
-            correct_pred_keys.append(k)
-            for i in range(dim[0]):
-                correct_predictions[i].append(input_data[i][k])
-        else:
-            incorrect_pred_keys.append([k, prediction, target])
-            for i in range(dim[0]):
-                incorrect_predictions[i].append(input_data[i][k])
-    draw_data({"correct":correct_predictions,
-               "wrong":incorrect_predictions}, colours={"correct":"green", "wrong":"red"})
+    #3D
     
-    print(len(incorrect_pred_keys), len(incorrect_predictions[:][0]))
-    print(incorrect_pred_keys, incorrect_predictions)
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    
+    
+    colours=["brown", "green", "purple", "blue", "red", "black", "white"]
+    take_cover = 1000
+    pts = []
+    for _ in range(take_cover):
+        pt = [random.uniform(-2.0,2.0), random.uniform(-2, 2)] 
+        out = feed_me(ann, pt, dim)
+        
+        vectout = vectorize_neuron(out)
+        pt3d = [pt[0], pt[1], max(vectout)]
+        scout = scalaratize_output(vectout)
+        pts.append((pt3d, scout, -2 if scout == -1 else -1))
+    draw_out_data(pts, colours, ax)
+    
+    
+    results = [ 0 for _ in range(len(test_subjects))]
+    j = 0
+    for k, prediction, target in test_subjects:
+        position = [input_data[i][k] for i in range(dim[0])]
+        results[j] = (position, prediction, target)
+        j += 1
+    draw_out_data(results, colours[:dim[-1]])
+    
+    
+    plt.show()
+    
+
+    # /!\  /!\  /!\ Str
     # /!\  /!\  /!\ Strange behaviour detected /!\  /!\  /!\, inspect:
     # print("incorrect predictions:\n".join(str(incorrect_pred_keys[i][1])+" != "+str(incorrect_pred_keys[i][2]) + " on [".join(str(incorrect_predictions[d][i]) for d in range(dim[0]))+"], \n" for i in range(len(incorrect_pred_keys))))
     
@@ -145,14 +168,8 @@ def scalaratize_output(out):
     for i in range(len(out)):
         if out[i] > epsilon:
             return i
+    return -1
 
-def discretize_output(out):
-    epsilon = sum(out)/2
-    output = [[0] * 5]
-    for i in range(len(out)):
-        if out[i] > epsilon:
-            output[i] = 1
-            return output
 
 def get_target(dim, output_data, input_data, k):
     """ 
