@@ -63,7 +63,7 @@ def main():
     
     
     dim = (2,5,10, 5)#, 19
-    EPOCHS = 300
+    EPOCHS = 1000
     learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
@@ -275,6 +275,9 @@ def sum_inputs(weights, inputs):
     return x
 
 def sigma(x):
+    """
+    Sigmoid activation function
+    """
     sigmoid = 1/(1 + math.e**(-x))
     return sigmoid
 # ----------------------------------------------------------------
@@ -376,7 +379,9 @@ def propagate_weights(ann, source_layer, destination_layer, err_term, n_ix, lay_
         old_w = source_layer[n_ix]["weight"][prev_n_ix]
         ann[lay_ix][n_ix]["weight"][prev_n_ix] = old_w + delt_w
     
-    delt_wb = delta_w(1, err_term, learning_rate)
+    bias = 1
+    #bias = source_layer[n_ix]["weight"][-1]# slower learning
+    delt_wb = delta_w(bias, err_term, learning_rate)
     old_wb = source_layer[n_ix]["weight"][-1]
     ann[lay_ix][n_ix]["weight"][-1] = old_wb + delt_wb
     
