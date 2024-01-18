@@ -40,7 +40,7 @@ def draw_out_data(results, colours, plt3d=None):
     if plt3d is not None:
         for result in results:# draw each class separately
             plt3d.scatter(result[0][0], result[0][1], result[0][2], color=colours[result[2]], edgecolors=colours[result[1]])
-        #return
+        return
     for result in results:# draw each class separately
         plt.scatter(result[0][0], result[0][1], color=colours[result[2]], edgecolors=colours[result[1]])
     
@@ -64,13 +64,14 @@ def get_data(filepath="../data/tren_data2___08.txt", columns=3):
 
 
 def main():
-    dim = (2,5,10, 5)#, 19
-    EPOCHS = 1000
+    dim = (2, 10, 5)#, 19
+    EPOCHS = 3000
     learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
     # NN hotovka
     input_data, output_data = get_data()
+    plt.title("Original data")
     draw_data(dictionarize_X_y(input_data, output_data))
     for inp in input_data:
         mean = statistics.mean(inp)# EX
@@ -87,6 +88,7 @@ def main():
     train_keys, validation_keys, test_keys = split_train_val_test(keys)
     
     best_acc, avg_acc, acc = train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS=EPOCHS, learning_rate=learning_rate)
+    plt.title("Accuracy")
     plt.plot(acc)
     plt.show()
     print("Training done, ", best_acc, ", avg: ", avg_acc, ", acc", np.mean(acc), max(acc))
@@ -95,33 +97,32 @@ def main():
     print("ANN dimension:", dim)
     
     #3D
-    
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    
-    
+    plt.title("Decision confidence")
     colours=["brown", "green", "purple", "blue", "red", "black", "white"]
     take_cover = 1000
     pts = []
     for _ in range(take_cover):
-        pt = [random.uniform(-2.0,2.0), random.uniform(-2, 2)] 
+        pt = [random.uniform(-2.0,2.0), random.uniform(-2, 2)]
         vectout = feed_me(ann, pt, dim)[-1]
         
-        pt3d = [pt[0], pt[1], max(vectout)]
+        pt3d = [pt[0], pt[1], max(vectout)/sum(vectout)]
         scout = scalaratize_output(vectout)
         pts.append((pt3d, scout, -2 if scout == -1 else -1))
     draw_out_data(pts, colours, ax)
     
+    plt.show()
     
+    plt.title("Classification of test set")
     results = [ 0 for _ in range(len(test_subjects))]
     j = 0
     for k, prediction, target in test_subjects:
         position = [input_data[i][k] for i in range(dim[0])]
         results[j] = (position, prediction, target)
         j += 1
-    draw_out_data(results, colours[:dim[-1]])
-    
-    
+    print("RRRR",results)
+    draw_out_data(results, colours)
     plt.show()
     
 
@@ -261,7 +262,7 @@ def feed_me(ann, targ_inp, dim):
         for i in range(len(ann[l])):
             neuron = ann[l][i]
             net = sum_inputs(neuron, output_matrix[l-1])
-            output_matrix[l][i] = sigma(net)
+            output_matrix[l][i] = sigmoid(net)
     return output_matrix
     
         
@@ -278,7 +279,7 @@ def sum_inputs(weights, inputs):
     x += weights[-1]# +bias
     return x
 
-def sigma(x):
+def sigmoid(x):
     """
     Sigmoid activation function
     """
@@ -356,17 +357,26 @@ def back_propagation(ann, out_matrix, target_output, learning_rate):#, dim len(d
     for lay_ix in range(len(ann)-1, 1, -1):# start, stop, step
         layer = ann[lay_ix]
         
-        prev_layer = ann[lay_ix-1]
         # for each layer and layer before it
         err_term = 0
         deltas = []
         # for each neuron in the layer
         for n_ix in range(len(layer)):
+            neuron_outp = out_matrix[lay_ix][n_ix]
             if lay_ix == len(ann)-1:
-                err_term = error_term_output(t = target_output[n_ix], o = out_matrix[lay_ix][n_ix])
+                err_term = error_term_output(t = target_output[n_ix], o = neuron_outp)
             else:
-                err_term = error_term_hidden(o_j = out_matrix[lay_ix][n_ix], deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
+                err_term = error_term_hidden(o_j = neuron_outp, deltas_next=deltas_cpy, layer_next=ann[lay_ix+1], neuron_ix=n_ix)
+            
+            
+            osum = sum_inputs(ann[lay_ix][n_ix], out_matrix[lay_ix-1])
+            sig_inv = sigmoid(osum) * (1 - sigmoid(osum))
+            #sig_inv *= neuron_outp * (1 - neuron_outp)# not realy, but works
+            
+            err_term *= sig_inv
             deltas.append(err_term)
+            
+            
             propagate_weights(ann, out_matrix, lay_ix, lay_ix-1, err_term, n_ix, lay_ix, learning_rate)
         deltas_cpy = deltas
     return ann
@@ -375,7 +385,6 @@ def propagate_weights(ann, output_matrix, source_ix, destination_ix, err_term, n
     """
         neuron's weights propagation
     """
-    destination_layer = ann[destination_ix]
     for prev_n_ix in range(len(ann[destination_ix])):# previous layer <-|
         if lay_ix >= 1:
             delt_w = delta_w(output_matrix[destination_ix][prev_n_ix], err_term, learning_rate)
@@ -416,8 +425,9 @@ def error_term_hidden(o_j, deltas_next, layer_next, neuron_ix):
     for i in range(len(deltas_next)):
         d = deltas_next[i]
         w = layer_next[i][neuron_ix]
-        dot_product += d * w
-    delta = (1 - o_j) * o_j * dot_product
+        dot_product += d * w# error * weight
+    
+    delta = dot_product# * o_j*(1 - o_j)
     return delta
 
 
@@ -428,7 +438,7 @@ def error_term_output(t, o):
     @param o:               output of this neuron (what I got)
     @return: error
     """
-    return (t-o)*o*(1-o)
+    return (t-o)# * o*(1-o)
 
 
 
