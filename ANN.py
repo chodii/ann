@@ -64,8 +64,8 @@ def get_data(filepath="../data/tren_data2___08.txt", columns=3):
 
 
 def main():
-    dim = (2, 10, 5)#, 19
-    EPOCHS = 3000
+    dim = (2, 100, 5)#, 19
+    EPOCHS = 500
     learning_rate = 0.8
     ann = construct_ann(dim)
     print("ANN:",ann,"\n")
@@ -146,6 +146,9 @@ def split_train_val_test(keys):
                 validation_keys.append(k)
             else:
                 test_keys.append(k)
+    
+    np.random.shuffle(train_keys)
+    np.random.shuffle(validation_keys)
     return train_keys, validation_keys, test_keys
 
 def test(ann, dim, test_keys, input_data, output_data):
@@ -191,6 +194,7 @@ def train(ann, dim, train_keys, validation_keys, input_data, output_data, EPOCHS
     #b = 0
     #target_outputs = []
     for i in range(EPOCHS):
+        #np.random.shuffle(test_keys)
         print(".", end="")
         #outpus = []
         for k in train_keys:
@@ -354,7 +358,7 @@ def back_propagation(ann, out_matrix, target_output, learning_rate):#, dim len(d
         network propagation
     """
     deltas_cpy = []
-    for lay_ix in range(len(ann)-1, 1, -1):# start, stop, step
+    for lay_ix in range(len(ann)-1, 0, -1):# start, stop, step
         layer = ann[lay_ix]
         
         # for each layer and layer before it
@@ -377,27 +381,27 @@ def back_propagation(ann, out_matrix, target_output, learning_rate):#, dim len(d
             deltas.append(err_term)
             
             
-            propagate_weights(ann, out_matrix, lay_ix, lay_ix-1, err_term, n_ix, lay_ix, learning_rate)
+            propagate_weights(ann, out_matrix, lay_ix, lay_ix-1, err_term, n_ix, learning_rate)
         deltas_cpy = deltas
     return ann
 
-def propagate_weights(ann, output_matrix, source_ix, destination_ix, err_term, n_ix, lay_ix, learning_rate):
+def propagate_weights(ann, output_matrix, source_ix, destination_ix, err_term, n_ix, learning_rate):
     """
         neuron's weights propagation
     """
     for prev_n_ix in range(len(ann[destination_ix])):# previous layer <-|
-        if lay_ix >= 1:
+        if source_ix >= 1:
             delt_w = delta_w(output_matrix[destination_ix][prev_n_ix], err_term, learning_rate)
         else:
             delt_w = delta_w(output_matrix[destination_ix][prev_n_ix], err_term, learning_rate)
         old_w = ann[source_ix][n_ix][prev_n_ix]
-        ann[lay_ix][n_ix][prev_n_ix] = old_w + delt_w
+        ann[source_ix][n_ix][prev_n_ix] = old_w + delt_w
     
     bias = 1
     #bias = source_layer[n_ix][-1]# slower learning
     delt_wb = delta_w(bias, err_term, learning_rate)
     old_wb = ann[source_ix][n_ix][-1]
-    ann[lay_ix][n_ix][-1] = old_wb + delt_wb
+    ann[source_ix][n_ix][-1] = old_wb + delt_wb
     
 
 def delta_w(o_j, delta_next, learning_rate = 0.5):
