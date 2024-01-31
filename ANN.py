@@ -17,21 +17,13 @@ import statistics
 
 import io
 
+
 # --------
 # PLOTING
 # --------
 
-def dictionarize_X_y(X, y, y_range = range(1,6,1)):
-    len_X = len(X)# since array should be fixed, O(1); just felt wrong not to save
-    Xy = {yi:[[] for _ in range(len_X)] for yi in y_range}# prepare dictionary
-    for i in range(len(y)):# fill dictionary
-        yi = int(y[i])
-        for j in range(len_X):
-            Xy[yi][j].append(X[j][i])
-    return Xy
-    
 def draw_data(Xy, colours=None):
-    for yi in Xy.keys():# draw each class separately
+    for yi in range(len(Xy)):# draw each class separately
         plt.scatter(Xy[yi][0], Xy[yi][1], label=str(yi), color=colours[yi] if colours is not None else colours)
     plt.legend(loc="upper left")
     plt.show()
@@ -65,24 +57,29 @@ def get_data(filepath="../data/tren_data2___08.txt", columns=3):
 
 def main():
     dim = (2, 100, 5)#, 19
-    EPOCHS = 500
+    EPOCHS = 2000
     learning_rate = 0.8
     ann = construct_ann(dim)
-    print("ANN:",ann,"\n")
-    # NN hotovka
+    
     input_data, output_data = get_data()
     plt.title("Original data")
-    draw_data(dictionarize_X_y(input_data, output_data))
+
+    
+    inp_pts=[[[],[]] for _ in range(dim[-1])]
+    print("IPTS:",inp_pts)
+    for i in range(len(output_data)):
+        inp_pts[int(output_data[i])-1][0].append(input_data[0][i])
+        inp_pts[int(output_data[i])-1][1].append(input_data[1][i])
+    
+    draw_data(inp_pts)
     for inp in input_data:
         mean = statistics.mean(inp)# EX
         std = statistics.stdev(inp)# varX
-        #for k in inp.keys():
-        #minp = min(inp)
-        #manp = max(inp)
+    
         for k in range(len(inp)):
             inp[k] = ((inp[k] - mean)/std)# norm
             #inp[k] = (inp[k] - minp)/(-minp + manp)
-    print(input_data)
+    print("input data", [len(input_data), len(input_data[0])])
     
     keys = np.arange(len(output_data)).tolist()#output_data.keys()
     train_keys, validation_keys, test_keys = split_train_val_test(keys)
@@ -124,12 +121,7 @@ def main():
     print("RRRR",results)
     draw_out_data(results, colours)
     plt.show()
-    
 
-    # /!\  /!\  /!\ Str
-    # /!\  /!\  /!\ Strange behaviour detected /!\  /!\  /!\, inspect:
-    # print("incorrect predictions:\n".join(str(incorrect_pred_keys[i][1])+" != "+str(incorrect_pred_keys[i][2]) + " on [".join(str(incorrect_predictions[d][i]) for d in range(dim[0]))+"], \n" for i in range(len(incorrect_pred_keys))))
-    
 
 def split_train_val_test(keys):
     split_rate_train = 0.75
@@ -269,12 +261,12 @@ def feed_me(ann, targ_inp, dim):
             output_matrix[l][i] = sigmoid(net)
     return output_matrix
     
-        
+""" 
 def print_ann(ann):
     for layer in ann:
         for n in layer:
             print(n)
-            
+        """  
 
 def sum_inputs(weights, inputs):
     x = 0
